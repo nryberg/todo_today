@@ -18,9 +18,8 @@ WORKDIR /app
 # Copy Gemfile and Gemfile.lock
 COPY Gemfile Gemfile.lock ./
 
-# Install gems
-RUN bundle config set --local deployment 'true' && \
-    bundle config set --local without 'development test' && \
+# Install gems without deployment mode to handle platforms
+RUN bundle config set --local without 'development test' && \
     bundle install
 
 # Copy the application code
