@@ -162,8 +162,9 @@ echo ""
 print_success "🎉 Deployment Complete!"
 echo ""
 echo "📱 Access your Todo Today app at:"
-echo "   • http://bigbox:3000"
-echo "   • http://$(hostname -I | awk '{print $1}'):3000"
+echo "   • http://bigbox (via Nginx proxy)"
+echo "   • http://$(hostname -I | awk '{print $1}') (via Nginx proxy)"
+echo "   • http://bigbox:3000 (direct to Rails - for debugging)"
 echo ""
 echo "🔧 Useful commands:"
 echo "   • View logs: $DOCKER_COMPOSE logs -f web"
@@ -172,11 +173,15 @@ echo "   • Restart: $DOCKER_COMPOSE restart"
 echo "   • Update: git pull && $DOCKER_COMPOSE build && $DOCKER_COMPOSE up -d"
 echo ""
 
-# Optional: Check if nginx profile should be suggested
-if docker images | grep -q nginx; then
-    print_status "💡 Tip: To run on port 80 instead of 3000:"
-    echo "   $DOCKER_COMPOSE --profile nginx up -d"
-    echo "   Then access at: http://bigbox"
+# Check if nginx is running
+if $DOCKER_COMPOSE ps | grep -q nginx; then
+    print_success "🌐 Nginx reverse proxy is running"
+    echo "   • Clean URLs (no :3000 port needed)"
+    echo "   • Google OAuth redirect: http://bigbox/users/auth/google_oauth2/callback"
+    echo "   • Static asset caching enabled"
+    echo "   • Rate limiting configured"
+else
+    print_warning "🌐 Nginx proxy not running - using direct Rails access"
 fi
 
 # Check for Google OAuth setup
@@ -185,7 +190,7 @@ if ! grep -q "GOOGLE_CLIENT_ID" .env || grep -q "GOOGLE_CLIENT_ID=your_google_cl
     print_warning "🔐 Don't forget to configure Google OAuth:"
     echo "   1. Get credentials from Google Cloud Console"
     echo "   2. Add them to .env file"
-    echo "   3. Add redirect URI: http://bigbox:3000/users/auth/google_oauth2/callback"
+    echo "   3. Add redirect URI: http://bigbox/users/auth/google_oauth2/callback"
     echo "   4. Restart with: $DOCKER_COMPOSE restart"
 fi
 
