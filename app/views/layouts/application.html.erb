@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Todo Today</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <nav class="navbar">
+      <div class="container">
+        <h1 class="logo">Todo Today</h1>
+        <ul class="nav-links">
+          <li><%= link_to "Tasks", tasks_path, class: "nav-link" %></li>
+          <li><%= link_to "Reports", reports_path, class: "nav-link" %></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main class="container">
+      <div id="flash-messages">
+        <% if flash[:notice] %>
+          <div class="notice"><%= flash[:notice] %></div>
+        <% end %>
+
+        <% if flash[:alert] %>
+          <div class="alert"><%= flash[:alert] %></div>
+        <% end %>
+      </div>
+
+      <%= yield %>
+    </main>
+  </body>
+</html>

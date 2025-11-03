@@ -1,0 +1,48 @@
+<%= turbo_stream.replace "tasks" do %>
+  <% @tasks.each do |task| %>
+    <%= turbo_frame_tag dom_id(task) do %>
+      <div class="task-item <%= 'completed' if task.completed_today? %>"
+           data-controller="tasks"
+           data-tasks-task-id-value="<%= task.id %>"
+           data-tasks-completed-value="<%= task.completed_today? %>"
+           data-tasks-item-target="item">
+        <div class="task-content">
+          <% if task.completed_today? %>
+            <%= button_to "✓", uncomplete_task_path(task), method: :delete,
+                class: "task-checkbox checked",
+                data: {
+                  tasks_checkbox_target: "checkbox",
+                  action: "click->tasks#toggle"
+                } %>
+          <% else %>
+            <%= button_to "○", complete_task_path(task), method: :post,
+                class: "task-checkbox",
+                data: {
+                  tasks_checkbox_target: "checkbox",
+                  action: "click->tasks#toggle"
+                } %>
+          <% end %>
+
+          <span class="task-name"><%= task.name %></span>
+
+          <div class="task-completion-rate">
+            <small><%= task.completion_rate(30) %>% (30 days)</small>
+          </div>
+        </div>
+
+        <div class="task-actions">
+          <%= link_to "Edit", edit_task_path(task), class: "btn btn-small" %>
+          <%= button_to "Delete", task_path(task), method: :delete, class: "btn btn-small btn-danger", data: { confirm: "Are you sure?" } %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+<% end %>
+
+<% if flash[:notice] %>
+  <%= turbo_stream.replace "flash-messages" do %>
+    <div id="flash-messages">
+      <div class="notice"><%= flash[:notice] %></div>
+    </div>
+  <% end %>
+<% end %>
