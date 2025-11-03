@@ -5,12 +5,26 @@ Rails.application.configure do
   config.eager_load = true
   config.consider_all_requests_local       = false
   config.action_controller.perform_caching = true
-  config.public_file_server.enabled = ENV["RAILS_SERVE_STATIC_FILES"].present?
-  config.assets.compile = false
+  config.public_file_server.enabled = ENV["RAILS_SERVE_STATIC_FILES"].present? || Rails.env.production?
+  config.assets.compile = true
   config.active_storage.service = :local
   config.log_level = :info
   config.log_tags = [ :request_id ]
+
+  # Force SSL in production (disable for home server)
+  config.force_ssl = false
+
+  # Host configuration for home server
+  config.hosts << "bigbox"
+  config.hosts << ENV["APP_HOST"] if ENV["APP_HOST"].present?
+
+  # Allow all hosts for home server deployment
+  config.hosts.clear
   config.action_mailer.perform_caching = false
+  config.action_mailer.default_url_options = {
+    host: ENV["APP_HOST"] || "bigbox",
+    port: ENV["APP_PORT"] || 3000
+  }
   config.i18n.fallbacks = true
   config.active_support.report_deprecations = false
   config.log_formatter = ::Logger::Formatter.new
