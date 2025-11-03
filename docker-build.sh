@@ -86,14 +86,29 @@ else
     print_status "SECRET_KEY_BASE already configured"
 fi
 
-# Handle Gemfile.lock platform issue
-print_status "Checking Gemfile.lock platforms..."
+# Handle Gemfile.lock platform and Bundler version issues
+print_status "Checking Gemfile.lock platforms and Bundler version..."
 if [ -f Gemfile.lock ]; then
+    # Check Bundler version
+    BUNDLER_VERSION=$(grep -A 1 "BUNDLED WITH" Gemfile.lock | tail -1 | xargs)
+    if [ -n "$BUNDLER_VERSION" ]; then
+        print_status "Gemfile.lock uses Bundler version: $BUNDLER_VERSION"
+    else
+        print_warning "Could not detect Bundler version from Gemfile.lock"
+    fi
+
+    # Check platforms
     if grep -q "x86_64-linux" Gemfile.lock; then
         print_success "Linux platform already supported in Gemfile.lock"
     else
         print_warning "Adding Linux platform support to Gemfile.lock..."
         if command -v bundle &> /dev/null; then
+            # Update Bundler if needed
+            if [ -n "$BUNDLER_VERSION" ]; then
+                print_status "Installing Bundler $BUNDLER_VERSION locally..."
+                gem install bundler:$BUNDLER_VERSION 2>/dev/null || print_warning "Could not install specific Bundler version"
+            fi
+
             bundle lock --add-platform x86_64-linux
             print_success "Added x86_64-linux platform to Gemfile.lock"
         else
@@ -106,10 +121,18 @@ fi
 
 # Build the Docker image
 print_status "Building Docker image..."
-if $DOCKER_COMPOSE build --no-cache; then
+print_status "This may take a few minutes on first build..."
+
+# Show build progress
+if $DOCKER_COMPOSE build --no-cache --progress=plain; then
     print_success "Docker image built successfully!"
 else
     print_error "Docker build failed!"
+    print_status "Common solutions:"
+    echo "  1. Make sure Docker has enough memory allocated"
+    echo "  2. Try: docker system prune -f"
+    echo "  3. Run: bundle lock --add-platform x86_64-linux (locally)"
+    echo "  4. Check Docker logs above for specific errors"
     exit 1
 fi
 

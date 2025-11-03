@@ -18,8 +18,10 @@ WORKDIR /app
 # Copy Gemfile and Gemfile.lock
 COPY Gemfile Gemfile.lock ./
 
-# Install gems without deployment mode to handle platforms
-RUN bundle config set --local without 'development test' && \
+# Install correct Bundler version and gems
+RUN BUNDLER_VERSION=$(grep -A 1 "BUNDLED WITH" Gemfile.lock | tail -1 | xargs) && \
+    gem install bundler:$BUNDLER_VERSION && \
+    bundle config set --local without 'development test' && \
     bundle install
 
 # Copy the application code
