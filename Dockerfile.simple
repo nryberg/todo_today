@@ -41,7 +41,10 @@ ENV RAILS_LOG_TO_STDOUT=true
 # Precompile assets (with dummy secret key for build)
 RUN SECRET_KEY_BASE=dummy_secret_for_precompile bundle exec rails assets:precompile
 
-# Create a non-root user
+# Make existing entrypoint script executable
+RUN chmod +x docker-entrypoint.sh
+
+# Create a non-root user and change ownership
 RUN groupadd -r appuser && \
     useradd -r -g appuser appuser && \
     chown -R appuser:appuser /app
@@ -52,12 +55,8 @@ USER appuser
 # Expose port 3000
 EXPOSE 3000
 
-# Remove server.pid on startup
-RUN echo '#!/bin/bash\nset -e\nrm -f /app/tmp/pids/server.pid\n\n# Generate secret key if not provided\nif [ -z "$SECRET_KEY_BASE" ]; then\n  export SECRET_KEY_BASE=$(bundle exec rails secret)\n  echo "Generated SECRET_KEY_BASE for this session"\nfi\n\n# Create database if it doesn'\''t exist\nif [ ! -f /app/db/production.sqlite3 ]; then\n  echo "Creating production database..."\n  bundle exec rails db:create RAILS_ENV=production\n  bundle exec rails db:migrate RAILS_ENV=production\n  if [ "$SEED_DB" = "true" ]; then\n    echo "Seeding database..."\n    bundle exec rails db:seed RAILS_ENV=production\n  fi\nelse\n  echo "Database exists, running migrations..."\n  bundle exec rails db:migrate RAILS_ENV=production\nfi\n\nexec "$@"' > /usr/local/bin/docker-entrypoint.sh && \
-    chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Use the entrypoint script
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+# Use the existing entrypoint script
+ENTRYPOINT ["./docker-entrypoint.sh"]
 
 # Default command
 CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"]
