@@ -1,14 +1,17 @@
 class ReportsController < ApplicationController
   def index
-    @tasks = Task.all.order(:name)
+    @tasks = current_user.tasks.order(:name)
     @days = params[:days]&.to_i || 30
 
     # Get date range
     @start_date = @days.days.ago.to_date
     @end_date = Date.current
 
-    # Get completions for the date range
-    completions = TaskCompletion.between_dates(@start_date, @end_date).includes(:task)
+    # Get completions for the date range (only for current user's tasks)
+    completions = TaskCompletion.joins(:task)
+                                .where(tasks: { user_id: current_user.id })
+                                .between_dates(@start_date, @end_date)
+                                .includes(:task)
 
     # Group completions by date and task_id
     @completions_by_date = {}

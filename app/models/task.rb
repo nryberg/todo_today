@@ -1,7 +1,9 @@
 class Task < ApplicationRecord
+  belongs_to :user
   has_many :task_completions, dependent: :destroy
 
   validates :name, presence: true
+  validates :user, presence: true
 
   def completed_today?
     today_start = Date.current.beginning_of_day

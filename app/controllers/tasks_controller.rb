@@ -13,7 +13,7 @@ class TasksController < ApplicationController
   end
 
   def create
-    @task = Task.new(task_params)
+    @task = current_user.tasks.build(task_params)
 
     if @task.save
       redirect_to tasks_path, notice: "Task was successfully created."
@@ -62,17 +62,18 @@ class TasksController < ApplicationController
   end
 
   def reset_all
-    # Get all tasks that are completed today
-    completed_tasks = Task.joins(:task_completions)
-                         .where(task_completions: {
-                           completed_at: Date.current.beginning_of_day..Date.current.end_of_day
-                         })
-                         .distinct
+    # Get all tasks that are completed today for current user
+    completed_tasks = current_user.tasks.joins(:task_completions)
+                                       .where(task_completions: {
+                                         completed_at: Date.current.beginning_of_day..Date.current.end_of_day
+                                       })
+                                       .distinct
 
-    # Delete all today's completions
-    TaskCompletion.where(
-      completed_at: Date.current.beginning_of_day..Date.current.end_of_day
-    ).destroy_all
+    # Delete all today's completions for current user's tasks
+    TaskCompletion.joins(:task)
+                  .where(tasks: { user_id: current_user.id })
+                  .where(completed_at: Date.current.beginning_of_day..Date.current.end_of_day)
+                  .destroy_all
 
     count = completed_tasks.count
     message = if count == 0
@@ -95,7 +96,7 @@ class TasksController < ApplicationController
   private
 
   def set_task
-    @task = Task.find(params[:id])
+    @task = current_user.tasks.find(params[:id])
   end
 
   def task_params
@@ -103,21 +104,6 @@ class TasksController < ApplicationController
   end
 
   def sorted_tasks
-    tasks = Task.all.includes(:task_completions)
-
-    # Separate completed and incomplete tasks
-    incomplete_tasks = []
-    completed_tasks = []
-
-    tasks.each do |task|
-      if task.completed_today?
-        completed_tasks << task
-      else
-        incomplete_tasks << task
-      end
-    end
-
-    # Sort each group by name, then combine with incomplete first
-    incomplete_tasks.sort_by(&:name) + completed_tasks.sort_by(&:name)
+    current_user.sorted_tasks
   end
 end
