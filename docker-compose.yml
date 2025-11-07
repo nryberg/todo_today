@@ -1,8 +1,6 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile}
+    build: .
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
@@ -12,11 +10,19 @@ services:
       - RAILS_SERVE_STATIC_FILES=true
       - RAILS_LOG_TO_STDOUT=true
       - APP_HOST=${APP_HOST:-bigbox}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-todo-backups}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
     volumes:
+      - ./app:/app/app
+      - ./config:/app/config
       - ./db:/app/db
       - ./log:/app/log
       - ./storage:/app/storage
       - ./tmp:/app/tmp
+      - ./backup-db.sh:/app/backup-db.sh:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
@@ -50,6 +56,32 @@ services:
       - todo_network
     profiles:
       - nginx
+
+  backup:
+    build: .
+    environment:
+      - RAILS_ENV=production
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-todo-backups}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      - DB_PATH=/app/db/production.sqlite3
+    volumes:
+      - ./db:/app/db
+      - ./backup-db.sh:/app/backup-db.sh:ro
+    command: >
+      sh -c "
+        echo '0 2 * * * /app/backup-db.sh >> /var/log/backup.log 2>&1' | crontab - &&
+        crond -f -l 2
+      "
+    depends_on:
+      - web
+    restart: unless-stopped
+    networks:
+      - todo_network
+    profiles:
+      - backup
 
 networks:
   todo_network:
