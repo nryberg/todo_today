@@ -1,8 +1,15 @@
 Rails.application.routes.draw do
-  devise_for :users, controllers: {
-    omniauth_callbacks: 'users/omniauth_callbacks',
-    registrations: 'users/registrations'
-  }
+  # Conditionally configure devise routes based on Google OAuth feature flag
+  if ENV['ENABLE_GOOGLE_OAUTH']&.downcase == 'true'
+    devise_for :users, controllers: {
+      omniauth_callbacks: 'users/omniauth_callbacks',
+      registrations: 'users/registrations'
+    }
+  else
+    devise_for :users, controllers: {
+      registrations: 'users/registrations'
+    }
+  end
 
   root "tasks#index"
 

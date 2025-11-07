@@ -1,9 +1,15 @@
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
-  devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable,
-         :omniauthable, omniauth_providers: [:google_oauth2]
+  # Conditionally add omniauthable based on feature flag
+  if ENV['ENABLE_GOOGLE_OAUTH']&.downcase == 'true'
+    devise :database_authenticatable, :registerable,
+           :recoverable, :rememberable, :validatable,
+           :omniauthable, omniauth_providers: [:google_oauth2]
+  else
+    devise :database_authenticatable, :registerable,
+           :recoverable, :rememberable, :validatable
+  end
 
   has_many :tasks, dependent: :destroy
   has_many :task_completions, through: :tasks
