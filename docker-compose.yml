@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: ${DOCKERFILE:-Dockerfile}
-    expose:
-      - "3000"
+    ports:
+      - "${APP_PORT:-3000}:3000"
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SECRET_KEY_BASE}
@@ -27,12 +27,11 @@ services:
     networks:
       - todo_network
 
-  # Nginx reverse proxy
+  # Nginx reverse proxy (disabled by default)
   nginx:
     image: nginx:alpine
     ports:
-      - "${NGINX_PORT:-80}:80"
-      - "${NGINX_SSL_PORT:-443}:443"
+      - "${NGINX_PORT:-8080}:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -42,7 +41,6 @@ services:
     restart: unless-stopped
     environment:
       - NGINX_HOST=${APP_HOST:-bigbox}
-      - NGINX_PORT=${NGINX_PORT:-80}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
@@ -50,6 +48,8 @@ services:
       retries: 3
     networks:
       - todo_network
+    profiles:
+      - nginx
 
 networks:
   todo_network:

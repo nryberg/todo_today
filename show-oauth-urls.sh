@@ -61,14 +61,14 @@ echo ""
 
 # Hostname-based URLs
 echo "2. Hostname-based:"
-echo "   http://$HOSTNAME/users/auth/google_oauth2/callback"
-echo "   http://$HOSTNAME.local/users/auth/google_oauth2/callback"
+echo "   http://$HOSTNAME:3000/users/auth/google_oauth2/callback"
+echo "   http://$HOSTNAME.local:3000/users/auth/google_oauth2/callback"
 echo ""
 
 # IP-based URLs
 echo "3. IP-based (most reliable):"
 for ip in $IPS; do
-    echo "   http://$ip/users/auth/google_oauth2/callback"
+    echo "   http://$ip:3000/users/auth/google_oauth2/callback"
 done
 
 echo ""
@@ -113,10 +113,11 @@ echo ""
 print_header "📱 Test your OAuth setup by visiting:"
 echo "===================================="
 for ip in $IPS; do
-    echo "   http://$ip"
+    echo "   http://$ip:3000"
 done
-echo "   http://$HOSTNAME.local (if on Mac network)"
+echo "   http://$HOSTNAME:3000"
+echo "   http://$HOSTNAME.local:3000 (if on Mac network)"
 
 echo ""
-print_warning "Note: Use the IP address version for most reliable Google OAuth setup!"
+print_warning "Note: Use the IP address with :3000 port for most reliable Google OAuth setup!"
 print_success "After configuration, restart your containers: docker compose restart"
