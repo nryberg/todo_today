@@ -6,12 +6,28 @@
 set -e  # Exit on any error
 
 # Load environment file if it exists
+load_env_file() {
+    local env_file="$1"
+    if [ -f "$env_file" ]; then
+        echo "Loading configuration from $env_file..."
+        # Only export lines that look like KEY=VALUE and aren't comments
+        while IFS= read -r line; do
+            # Skip empty lines and comments
+            if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
+                continue
+            fi
+            # Only export lines that contain = and look like environment variables
+            if [[ "$line" =~ ^[A-Z_][A-Z0-9_]*= ]]; then
+                export "$line"
+            fi
+        done < "$env_file"
+    fi
+}
+
 if [ -f "backup.env" ]; then
-    echo "Loading configuration from backup.env..."
-    export $(grep -v '^#' backup.env | xargs)
+    load_env_file "backup.env"
 elif [ -f "/app/backup.env" ]; then
-    echo "Loading configuration from /app/backup.env..."
-    export $(grep -v '^#' /app/backup.env | xargs)
+    load_env_file "/app/backup.env"
 fi
 
 # Configuration
