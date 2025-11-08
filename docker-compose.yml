@@ -23,6 +23,7 @@ services:
       - ./storage:/app/storage
       - ./tmp:/app/tmp
       - ./backup-db.sh:/app/backup-db.sh:ro
+      - ./backup.env:/app/backup.env:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
@@ -70,6 +71,7 @@ services:
     volumes:
       - ./db:/app/db
       - ./backup-db.sh:/app/backup-db.sh:ro
+      - ./backup.env:/app/backup.env:ro
     command: >
       sh -c "
         echo '0 2 * * * /app/backup-db.sh >> /var/log/backup.log 2>&1' | crontab - &&

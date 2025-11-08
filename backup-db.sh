@@ -5,12 +5,21 @@
 
 set -e  # Exit on any error
 
+# Load environment file if it exists
+if [ -f "backup.env" ]; then
+    echo "Loading configuration from backup.env..."
+    export $(grep -v '^#' backup.env | xargs)
+elif [ -f "/app/backup.env" ]; then
+    echo "Loading configuration from /app/backup.env..."
+    export $(grep -v '^#' /app/backup.env | xargs)
+fi
+
 # Configuration
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
 MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}"
 MINIO_SECRET_KEY="${MINIO_SECRET_KEY}"
 MINIO_BUCKET="${MINIO_BUCKET:-todo-backups}"
-DB_PATH="${TODO_DB_PATH:-/home/nick/todo_today/db/production.sqlite3}"
+DB_PATH="${DB_PATH:-}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 
 # Generate backup filename with timestamp
@@ -20,11 +29,53 @@ TEMP_BACKUP_PATH="/tmp/${BACKUP_FILENAME}"
 
 echo "Starting database backup at $(date)"
 
+# Auto-detect database file if not specified
+if [ -z "$DB_PATH" ]; then
+    echo "Auto-detecting database file using Rails configuration..."
+
+    # Try to get the database path from Rails
+    if command -v rails &> /dev/null; then
+        RAILS_DB_PATH=$(cd /app && rails runner "puts Rails.application.config.database_configuration[Rails.env]['database']" 2>/dev/null || echo "")
+        if [ -n "$RAILS_DB_PATH" ]; then
+            # Convert relative path to absolute if needed
+            if [[ "$RAILS_DB_PATH" != /* ]]; then
+                DB_PATH="/app/$RAILS_DB_PATH"
+            else
+                DB_PATH="$RAILS_DB_PATH"
+            fi
+            echo "Rails reports database at: $DB_PATH"
+        fi
+    fi
+
+    # Fallback to manual detection if Rails method failed
+    if [ -z "$DB_PATH" ] || [ ! -f "$DB_PATH" ]; then
+        echo "Rails detection failed, trying manual detection..."
+        if [ -f "/app/db/production.sqlite3" ]; then
+            DB_PATH="/app/db/production.sqlite3"
+            echo "Found production database: $DB_PATH"
+        elif [ -f "/app/db/development.sqlite3" ]; then
+            DB_PATH="/app/db/development.sqlite3"
+            echo "Found development database: $DB_PATH"
+        else
+            echo "ERROR: No SQLite database found. Listing /app/db/ contents:"
+            ls -la /app/db/ || echo "Cannot list /app/db/ directory"
+            exit 1
+        fi
+    fi
+fi
+
 # Check if database file exists
 if [ ! -f "$DB_PATH" ]; then
     echo "ERROR: Database file not found at $DB_PATH"
+    echo "Available files in database directory:"
+    ls -la "$(dirname "$DB_PATH")" || echo "Cannot list database directory"
     exit 1
 fi
+
+# Display the database file being backed up
+echo "Backing up database: $DB_PATH"
+DB_SIZE=$(du -h "$DB_PATH" | cut -f1)
+echo "Database size: $DB_SIZE"
 
 # Check required environment variables
 if [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
