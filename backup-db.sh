@@ -100,28 +100,41 @@ if [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
 fi
 
 # Install mc (MinIO client) if not present
-if ! command -v mc &> /dev/null; then
+MC_PATH="/tmp/mc"
+if ! command -v mc &> /dev/null && ! command -v "$MC_PATH" &> /dev/null; then
     echo "Installing MinIO client..."
-    curl -o /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc
-    chmod +x /usr/local/bin/mc
+    if curl -o "$MC_PATH" https://dl.min.io/client/mc/release/linux-amd64/mc; then
+        chmod +x "$MC_PATH"
+        echo "MinIO client installed to $MC_PATH"
+    else
+        echo "ERROR: Failed to download MinIO client"
+        exit 1
+    fi
+fi
+
+# Use mc from PATH or fallback to our downloaded version
+if command -v mc &> /dev/null; then
+    MC_CMD="mc"
+else
+    MC_CMD="$MC_PATH"
 fi
 
 # Configure MinIO client
 echo "Configuring MinIO client..."
-mc alias set minio "$MINIO_ENDPOINT" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
+$MC_CMD alias set minio "$MINIO_ENDPOINT" "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
 
 # Test connection
 echo "Testing MinIO connection..."
-if ! mc ls minio/ > /dev/null 2>&1; then
+if ! $MC_CMD ls minio/ > /dev/null 2>&1; then
     echo "ERROR: Cannot connect to MinIO server at $MINIO_ENDPOINT"
     exit 1
 fi
 
 # Create bucket if it doesn't exist
 echo "Ensuring bucket exists..."
-if ! mc ls "minio/$MINIO_BUCKET" > /dev/null 2>&1; then
+if ! $MC_CMD ls "minio/$MINIO_BUCKET" > /dev/null 2>&1; then
     echo "Creating bucket: $MINIO_BUCKET"
-    mc mb "minio/$MINIO_BUCKET"
+    $MC_CMD mb "minio/$MINIO_BUCKET"
 else
     echo "Bucket $MINIO_BUCKET already exists"
 fi
@@ -142,7 +155,7 @@ echo "Backup created: $BACKUP_FILENAME ($BACKUP_SIZE)"
 
 # Upload to MinIO
 echo "Uploading backup to MinIO..."
-if mc cp "$TEMP_BACKUP_PATH" "minio/$MINIO_BUCKET/$BACKUP_FILENAME"; then
+if $MC_CMD cp "$TEMP_BACKUP_PATH" "minio/$MINIO_BUCKET/$BACKUP_FILENAME"; then
     echo "Backup uploaded successfully: s3://$MINIO_BUCKET/$BACKUP_FILENAME"
 else
     echo "ERROR: Failed to upload backup to MinIO"
@@ -160,20 +173,20 @@ if [ "$BACKUP_RETENTION_DAYS" -gt 0 ]; then
     CUTOFF_DATE=$(date -d "$BACKUP_RETENTION_DAYS days ago" +"%Y%m%d")
 
     # List and delete old backups
-    mc ls "minio/$MINIO_BUCKET/" | grep "todo_backup_" | while read -r line; do
+    $MC_CMD ls "minio/$MINIO_BUCKET/" | grep "todo_backup_" | while read -r line; do
         # Extract date from filename (format: todo_backup_YYYYMMDD_HHMMSS.sqlite3)
         BACKUP_DATE=$(echo "$line" | sed -n 's/.*todo_backup_\([0-9]\{8\}\)_.*/\1/p')
         if [ -n "$BACKUP_DATE" ] && [ "$BACKUP_DATE" -lt "$CUTOFF_DATE" ]; then
             OLD_BACKUP=$(echo "$line" | awk '{print $NF}')
             echo "Deleting old backup: $OLD_BACKUP"
-            mc rm "minio/$MINIO_BUCKET/$OLD_BACKUP"
+            $MC_CMD rm "minio/$MINIO_BUCKET/$OLD_BACKUP"
         fi
     done
 fi
 
 # Create a "latest" symlink for easy access
 echo "Creating latest backup reference..."
-mc cp "minio/$MINIO_BUCKET/$BACKUP_FILENAME" "minio/$MINIO_BUCKET/latest.sqlite3"
+$MC_CMD cp "minio/$MINIO_BUCKET/$BACKUP_FILENAME" "minio/$MINIO_BUCKET/latest.sqlite3"
 
 echo "Backup completed successfully at $(date)"
 echo "Backup location: s3://$MINIO_BUCKET/$BACKUP_FILENAME"
