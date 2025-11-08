@@ -174,4 +174,5 @@ yarn-debug.log*
 /storage/*
 !/storage/.keep
 /public/uploads
+backup.env
 >>>>>>> ebd8593503440b11c4716a9df1961288529f740a

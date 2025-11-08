@@ -10,7 +10,7 @@ MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
 MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}"
 MINIO_SECRET_KEY="${MINIO_SECRET_KEY}"
 MINIO_BUCKET="${MINIO_BUCKET:-todo-backups}"
-DB_PATH="${DB_PATH:-/app/db/production.sqlite3}"
+DB_PATH="${TODO_DB_PATH:-/home/nick/todo_today/db/production.sqlite3}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 
 # Generate backup filename with timestamp
