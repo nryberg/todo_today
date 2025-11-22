@@ -1,8 +1,27 @@
 services:
+  # Tailscale service to provide network connectivity
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: ${TAILSCALE_HOSTNAME:-todo-today}
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ACCEPT_DNS=true
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: unless-stopped
+    networks:
+      - todo_network
+
   web:
     build: .
-    ports:
-      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      - tailscale
     environment:
       - RAILS_ENV=production
       - SECRET_KEY_BASE=${SECRET_KEY_BASE}
@@ -10,6 +29,9 @@ services:
       - RAILS_SERVE_STATIC_FILES=true
       - RAILS_LOG_TO_STDOUT=true
       - APP_HOST=${APP_HOST:-bigbox}
+      - ENABLE_GOOGLE_OAUTH=${ENABLE_GOOGLE_OAUTH:-false}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-http://minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
@@ -31,8 +53,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-    networks:
-      - todo_network
+    network_mode: "service:tailscale"
 
   # Nginx reverse proxy (disabled by default)
   nginx:
@@ -88,3 +109,6 @@ services:
 networks:
   todo_network:
     driver: bridge
+
+volumes:
+  tailscale-state:
